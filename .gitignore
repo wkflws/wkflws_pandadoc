@@ -1,0 +1,13 @@
+.coverage
+.envrc
+.dir-locals.el
+.projectile
+.vscode/**
+
+**/.DS_Store
+**/__pycache__
+**/*.egg-info
+**/.mypy_cache
+
+build/**
+dist/**
