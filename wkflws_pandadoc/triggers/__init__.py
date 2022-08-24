@@ -1,11 +1,9 @@
 """Define trigger listeners for Pandadoc."""
-import hashlib
-import hmac
 import json
 import sys
 from typing import Any, Optional
 from uuid import uuid4
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse  # , parse_qs
 
 from wkflws.events import Event
 from wkflws.http import http_method, Request, Response
@@ -20,9 +18,19 @@ async def process_webhook_request(
     request: Request, response: Response
 ) -> Optional[Event]:
     """Accept and process a Pandadoc webhook request returning an event."""
-    # # Extract the signature for verification.
-    # url = urlparse(request.url)
+    logger = getLogger(f"{__identifier__}.triggers.process_webhook_request")
+    # Pandadoc doesn't have anything that can be used to indicate which tenant is
+    # receiving the webhook. as a result, this node is designed to take a wildcard path
+    # so an identifier can be mapped back to a unique user.
 
+    # The rstrip ensures we don't generate a space as the last element with a trailing
+    # slash.
+    url = urlparse(request.url)
+    pandadoc_path_id = url.path.rstrip("/").split("/")[-1]
+    metadata = {"x-pandadoc-path-id": pandadoc_path_id}
+    logger.info(f"Found pandadoc path id: {pandadoc_path_id}")
+
+    # # Extract the signature for verification.
     # qs = parse_qs(url.query)
 
     # try:
@@ -50,7 +58,7 @@ async def process_webhook_request(
     # }
 
     # if not verified: return 401
-    metadata = {}
+
     metadata.update(request.headers)
 
     # Most webhooks include a header with a unique id that can be used as the event's
@@ -70,12 +78,14 @@ async def accept_event(event: Event) -> tuple[Optional[str], dict[str, Any]]:
     logger = getLogger(f"{__identifier__}.triggers.accept_event")
     # Pandadoc sends an array of document payloads. I'm not exactly sure in what cases
     # there will be more than one element so this _may_ be incorrect.
-    for payload in event.data:
+    event_data: list[dict[str, Any]] = event.data  # type: ignore # for typechecking
+
+    for payload in event_data:
         event_type = payload.get("event", None)
-        data = payload.get("data", None)
+        doc_data = payload.get("data", None)
 
         if event_type == "document_state_changed":
-            data = schemas.Document(**data)
+            data = schemas.Document(**doc_data)  # type: ignore
             print(data.json(by_alias=True, indent=2), file=sys.stderr)
             return "wkflws_pandadoc.triggers.document_state_changed", data.dict(
                 by_alias=True
@@ -97,7 +107,7 @@ webhook = WebhookTrigger(
     routes=(
         (
             (http_method.POST,),
-            "/pandadoc/webhook/",
+            "/pandadoc/webhook/{pandadoc_id}/",
             process_webhook_request,
         ),
     ),
