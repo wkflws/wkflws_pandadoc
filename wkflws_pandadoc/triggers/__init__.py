@@ -70,7 +70,7 @@ async def process_webhook_request(
     # serializable dict.
     data = json.loads(request.body)
 
-    return Event(identifier, request.headers, data)
+    return Event(identifier, metadata, data)
 
 
 async def accept_event(event: Event) -> tuple[Optional[str], dict[str, Any]]:
