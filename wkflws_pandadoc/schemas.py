@@ -160,8 +160,8 @@ class Recipient(BaseModel):
     recipient_type: str
     # role: str   # deprecated
     roles: list[str]
-    first_name: str
-    last_name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     signing_order: Optional[Any]  # nullable unknown type
     shared_link: HttpUrl | Literal[""]
     has_completed: bool
